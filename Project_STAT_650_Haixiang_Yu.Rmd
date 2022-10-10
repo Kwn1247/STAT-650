@@ -1,0 +1,74 @@
+title: "Project, STAT 650"
+author: Haixiang Yu
+output:
+  pdf_document: default
+---
+  
+```{r}
+library(tidyverse)
+dat <- read.csv("drug-use-by-age.csv", header=TRUE)
+head(dat)
+```
+```{r}
+# Delete some drug we do not want to analysis
+drug<- dat %>%
+  rename(sample.size = n, alcohol = alcohol.use, marijuana = marijuana.use, cocaine = cocaine.use,crack = crack.use, heroin = heroin.use, hallucinogen = hallucinogen.use, inhalant = inhalant.use, pain_releiver = pain.releiver.use, oxycontin = oxycontin.use, tranquilizer = tranquilizer.use, stimulant = stimulant.use, meth = meth.use, sedative = sedative.use)
+drugs<- drug[,c(1,2,3,5,17,19,21,23,25,27)]
+head(drugs)
+```
+
+```{r}
+# clean data
+drugs1 <- as.data.frame(drugs, stringsAsFactors = FALSE)
+drugs1 <- as.data.frame(apply(drugs,2, as.integer))
+drugs1[is.na(drugs1)] <- 0
+# Combined ages groups
+drugs1[1,] <- drugs1[1,] + drugs1[2,] + drugs1[3,] + drugs1[4,]
+drugs1[5,] <- drugs1[5,] + drugs1[6,] + drugs1[7,]
+drugs1[8,] <- drugs1[8,] + drugs1[9,] + drugs1[10,]
+drugs2 <- drugs1[c(1,5,8,11,12,13,14,15,16,17),]
+drugs2$age <- c('12-15', '16-18','19-21','22-23','24-25','26-29','30-34','35-49','50-64','65+')
+head(drugs2,10)
+```
+```{r}
+# Count number of Drug used by age
+drug_gather <- gather(drugs2, "Drug", "Percent", 3:10)
+drug_gather$Percent <- as.numeric(drug_gather$Percent)
+drug3 <- separate(drug_gather, "Drug", c("Drug"))
+names (drug3) <- c("Age", "Size", "Drug", "Percent")
+drug3$Count <- Size*Percent*.01
+head(drug3,11)
+```
+
+```{r}
+drug3 %>%
+  mutate(Drug = reorder(Drug, Count)) %>%
+  ggplot(aes(Count, Drug)) + 
+  geom_col() +
+  scale_fill_continuous() +
+  labs(x="Count", 
+       title = "Drug Use Count") +
+  theme(plot.title=element_text(hjust = 0.5))
+```
+
+```{r}
+drug_summary <- drug3 %>%
+  group_by(Drug) %>%
+  summarise(
+    percent_mean = mean(Percent, na.rm = TRUE),
+    n = n()
+  )
+```
+```{r}
+ggplot(drug_summary, aes(percent_mean, fct_reorder(Drug, percent_mean))) +
+  labs(x="Average Percent",y="Drug")+
+  ggtitle("Drug Use Count (B)")+
+  geom_point()
+```
+
+```{r}
+agebp <- boxplot(Count ~ Age, drug3, 
+                 col = rainbow(ncol(drugs)), 
+                 main = "Drug Use Outliners among Age Groups", 
+                 las = 2, pars=list(outcol="red"))
+```
